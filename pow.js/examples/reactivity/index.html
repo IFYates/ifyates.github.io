@@ -1,0 +1,17 @@
+<html>
+<body>
+    Current value: {{ count }}
+    <button click="increment">Add 1</button>
+
+    <script type="module">
+        import pow from '../../src/pow.js'
+
+        const data = { count: 0 }
+        const binding = pow.apply(document.body, data)
+        window.increment = () => {
+            data.count += 1
+            binding.apply(data)
+        }
+    </script>
+</body>
+</html>
