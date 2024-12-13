@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="module">
+        import pow from '../src/pow.js'
+
+        const data = {
+            "list": [
+                { "item": { "text": "Apples" } },
+                { "item": { "text": "Oranges" } },
+                { "item": { "text": "Pears" } },
+                { "item": { "text": "Bananas" } }
+            ]
+        }
+        pow.apply(document.body, data)
+    </script>
+</head>
+
+<body>
+    <h3>Using 'array="list"'</h3>
+    <div>
+        <div>There are {{ list.length }} item(s)</div>
+        <ol>
+            <li pow array="list">
+                <template pow item="item">
+                    <template pow if="*first">The first item</template>
+                    <template pow else-if="*last">The last item</template>
+                    <template pow else>Item {{ *index + 1 }}</template>
+                    is {{ text }}
+                </template>
+            </li>
+        </ol>
+    </div>
+
+    <hr />
+
+    <h3>Using 'array' on context</h3>
+    <div pow item="list">
+        <div>There are {{ *data.length }} item(s)</div>
+        <ol>
+            <li pow array>
+                <template pow item="item">
+                    <template pow if="*first">The first item</template>
+                    <template pow else-if="*last">The last item</template>
+                    <template pow else>Item {{ *index + 1 }}</template>
+                    is {{ text }}
+                </template>
+            </li>
+        </ol>
+    </div>
+
+    <hr />
+
+    <h3>Direct array</h3>
+    <div pow array="[1,2,3]">{{ *data }}</div>
+</body>
+
+</html>

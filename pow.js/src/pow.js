@@ -2,13 +2,13 @@
  * @license MIT
  * @author IFYates <https://github.com/ifyates/pow.js>
  * @description A very small and lightweight templating framework.
- * @version 1.0.1
+ * @version 1.0.2
  */
 export default (() => {
-    function findChildTemplates(element) {
+    function nextChildTemplate(element) {
         element.removeAttribute('pow')
         const dom = element.content ?? element
-        return [...dom.querySelectorAll('*[pow]:not([pow] [pow])')]
+        return dom.querySelector('*[pow]:not([pow] [pow])')
     }
 
     function consumeBinding(element, bindings = ['item', 'array', 'if', 'ifnot']) {
@@ -22,22 +22,26 @@ export default (() => {
         return {}
     }
 
-    const _regex = /\{\{\s*(!*\*?[\$\w]+(\.\*?[\$\w]+)*.*?)\s*\}\}/g
+    const _regex = /\{\{\s*(.*?)\s*\}\}/gs
     function parseText(text, state, match) {
         while (match = _regex.exec(text)) {
-            const value = resolveToken(match[1], state)
+            const value = resolveToken(match[1], state) ?? ''
             _regex.lastIndex = match.index + `${value}`.length
-            text = text.substring(0, match.index) + (value ?? '') + text.slice(match.index + match[0].length)
+            text = text.slice(0, match.index) + value + text.slice(match.index + match[0].length)
         }
         return text
     }
 
-    function resolveToken(token, state) {
+    function resolveToken(token, state, js = token) {
         try {
-            const args = !Array.isArray(state.data) && typeof state.data != 'string' ? Object.entries({ ...state.data }) : []
-            args.push(['$', state])
-            const js = `return ${token[0] == '*' ? '$.' + token.slice(1) : token}`
-            const value = (new Function(...args.map($ => $[0]), js))(...args.map($ => $[1]))
+            // If the token starts with a star, it's accessing the state metadata
+            let args = (token[0] == '*' && (js = token.slice(1))) ? state : state?.data
+
+            // Execute the token as JS code, mapping to the state data
+            args = Object.entries(args || {}).filter($ => isNaN($[0]))
+            const value = (new Function(...args.map($ => $[0]), `return ${js}`))(...args.map($ => $[1]))
+
+            // If the result is a function, bind it for later
             if (typeof value == 'function') {
                 const uufn = `_${Math.random().toString(36).slice(2)}`
                 window.$pow$[uufn] = (el) => value.call(el, state.data, state.root)
@@ -64,7 +68,7 @@ export default (() => {
 
     function processElement(element, state) {
         const { attr, token } = consumeBinding(element)
-        const value = token && state ? resolveToken(token, state) : state.data
+        const value = token ? resolveToken(token, state) : state.data
         if (attr == 'if' || attr == 'ifnot') {
             while (updateSiblingCondition(element.nextElementSibling, (attr == 'if') != !value));
             if ((attr == 'if') == !value) {
@@ -72,10 +76,10 @@ export default (() => {
             }
         } else if (attr == 'item' && token) {
             state = {
+                ...state,
                 path: `${state.path}.${token}`,
                 data: value,
-                parent: state.data,
-                root: state.root
+                parent: state.data
             }
         } else if (attr == 'array' && typeof value == 'object') {
             const array = Array.isArray(value) ? value
@@ -84,18 +88,19 @@ export default (() => {
                 const child = element.cloneNode(1)
                 element.parentNode.insertBefore(child, element)
                 processElement(child, {
+                    ...state,
                     path: `${state.path}${token ? `.${token}` : ''}[${index}]`,
                     index, first: !index, last: index > array.length - 2,
                     data: array[index],
-                    parent: state,
-                    root: state.root
+                    parent: state
                 })
             }
             return element.remove()
         }
 
-        // Process any child 'pow' templates
-        for (const childTemplate of findChildTemplates(element)) {
+        // Process every child 'pow' template
+        var childTemplate
+        while (childTemplate = nextChildTemplate(element)) {
             processElement(childTemplate, state)
         }
 
@@ -114,7 +119,7 @@ export default (() => {
         }
     }
 
-    
+
     function bind(element) {
         const originalHTML = element.innerHTML
         const attributes = [...element.attributes]
