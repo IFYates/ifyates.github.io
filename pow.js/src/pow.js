@@ -2,10 +2,11 @@
  * @license MIT
  * @author IFYates <https://github.com/ifyates/pow.js>
  * @description A very small and lightweight templating framework.
- * @version 1.1.0
+ * @version 1.2.0
  */
 
-function consumeBinding(element, bindings = ['item', 'array', 'if', 'ifnot']) {
+// Resolves next pow binding
+function consumeBinding(element, bindings = ['if', 'ifnot', 'item', 'array', 'template']) {
     for (const attr of bindings) {
         const token = element.getAttribute(attr)
         if (token != null) {
@@ -13,9 +14,10 @@ function consumeBinding(element, bindings = ['item', 'array', 'if', 'ifnot']) {
             return { attr, token }
         }
     }
-    return {}
+    return 0
 }
 
+// Interpolates text templates
 const _regex = /\{\{\s*(.*?)\s*\}\}/s
 function parseText(text, state, match) {
     while (match = _regex.exec(text)) {
@@ -26,6 +28,7 @@ function parseText(text, state, match) {
     return text
 }
 
+// Resolves a token to a value
 function resolveToken(token, state, js = token) {
     try {
         // If the token starts with a star, it's accessing the state metadata
@@ -46,12 +49,13 @@ function resolveToken(token, state, js = token) {
     }
 }
 
+// Updates the next sibling condition
 function updateSiblingCondition(sibling, value) {
     if (sibling?.attributes.pow) {
         const { attr, token } = consumeBinding(sibling, ['else-if', 'else-ifnot', 'else'])
         if (attr && value) {
             sibling.remove()
-            return true
+            return 1
         }
         if (attr && attr != 'else') {
             sibling.setAttribute(attr.slice(5), token)
@@ -60,15 +64,24 @@ function updateSiblingCondition(sibling, value) {
 }
 
 const nextChildTemplate = (element) => (element.content ?? element).querySelector('*[pow]:not([pow] [pow])')
+const processCondition = (element, active, always) => {
+    while (updateSiblingCondition(element.nextElementSibling, active));
+    return (always || !active) && element.remove()
+}
 
-function processElement(element, state) {
+function processElement(element, state, value) {
+    // TODO: (v2.0.0?) Proper event binding. @click="function" -> element.addEventHandler
     const { attr, token } = consumeBinding(element)
-    const value = token ? resolveToken(token, state) : state.data
+
+    if (attr == 'template' && (value = document.getElementById(token))) {
+        const clone = value.cloneNode(1)
+        element.parentNode.replaceChild(clone, element)
+        return processElement(clone, state)
+    }
+
+    value = token ? resolveToken(token, state) : state.data
     if (attr == 'if' || attr == 'ifnot') {
-        while (updateSiblingCondition(element.nextElementSibling, (attr == 'if') != !value));
-        if ((attr == 'if') == !value) {
-            return element.remove()
-        }
+        return processCondition(element, (attr == 'if') != !value)
     } else if (attr == 'item' && token) {
         state = {
             ...state,
@@ -76,29 +89,28 @@ function processElement(element, state) {
             data: value,
             parent: state.data
         }
-    } else if (attr == 'array' && typeof value == 'object') {
-        const array = Array.isArray(value) ? value
+    } else if (attr == 'array' && typeof value == 'object') { // TODO: (v2.0.0?) Should array be inside only? Makes <ul array=""><li> cleaner. <div item="" array> could be outer
+        value = Array.isArray(value) ? value
             : Object.entries(value).map(([k, v]) => ({ key: k, value: v }))
-        for (let index = 0; index < array.length; ++index) {
+        for (let index = 0; index < value.length; ++index) {
             const child = element.cloneNode(1)
             element.parentNode.insertBefore(child, element)
             processElement(child, {
                 ...state,
                 path: `${state.path}${token ? `.${token}` : ''}[${index}]`,
-                index, first: !index, last: index > array.length - 2,
-                data: array[index],
+                index, first: !index, last: index > value.length - 2,
+                data: value[index],
                 parent: state
             })
         }
-        return element.remove()
+        return processCondition(element, value.length, 1)
     }
 
     element.removeAttribute('pow')
 
     // Process every child 'pow' template
-    var childTemplate
-    while (childTemplate = nextChildTemplate(element)) {
-        processElement(childTemplate, state)
+    while (value = nextChildTemplate(element)) {
+        processElement(value, state)
     }
 
     // Interpolate attributes
@@ -107,12 +119,12 @@ function processElement(element, state) {
     }
 
     // Parse inner HTML
-    const html = parseText(element.innerHTML, state)
+    value = parseText(element.innerHTML, state)
     if (element instanceof HTMLTemplateElement) {
-        element.insertAdjacentHTML('afterend', html)
+        element.insertAdjacentHTML('afterend', value)
         element.remove()
     } else {
-        element.innerHTML = html
+        element.innerHTML = value
     }
 }
 
@@ -130,7 +142,9 @@ function bind(element) {
             for (const { name, value } of attributes) {
                 element.setAttribute(name, value)
             }
+            //element.style.contentVisibility = 'hidden'
             processElement(element, { path: '*root', data, root: data })
+            //element.style.contentVisibility = 'visible'
             delete binding.$pow
             binding.refresh = () => binding.apply(data)
             return binding
