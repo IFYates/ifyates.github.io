@@ -6,7 +6,7 @@
  */
 
 // Resolves next pow binding
-function consumeBinding(element, bindings = ['if', 'ifnot', 'item', 'array', 'template']) {
+const consumeBinding = (element, bindings = ['if', 'ifnot', 'item', 'array', 'template']) => {
     for (const attr of bindings.filter($ => element.hasAttribute($))) {
         const expr = element.getAttribute(attr)
         element.removeAttribute(attr)
@@ -14,12 +14,13 @@ function consumeBinding(element, bindings = ['if', 'ifnot', 'item', 'array', 'te
     }
     return 0
 }
+const nextChildTemplate = (element, selector) => (element.content ?? element).querySelectorAll(selector)
 
 // Interpolates text templates
-const parseText = (text, state) => text.replace(/\{\{\s*(.*?)\s*\}\}/gs, (_, expr) => resolveExpr(expr, state) ?? '')
+const parseText = (text, state) => escape(text.replace(/{{\s*(.*?)\s*}}/gs, (_, expr) => resolveExpr(expr, state) ?? ''), state.root == state.data)
 
 // Resolves an expression to a value
-function resolveExpr(expr, state, js = expr) {
+const resolveExpr = (expr, state, js = expr) => {
     try {
         // If the expression starts with a star, it's accessing the state metadata
         const args = (expr[0] == '*' && (js = expr.slice(1))) ? state : state.data
@@ -40,7 +41,7 @@ function resolveExpr(expr, state, js = expr) {
 }
 
 // Updates the next sibling condition
-function updateSiblingCondition(sibling, value) {
+const updateSiblingCondition = (sibling, value) => {
     if (sibling?.attributes.pow) {
         const { attr, expr } = consumeBinding(sibling, ['else-if', 'else-ifnot', 'else'])
         if (attr && value) {
@@ -50,14 +51,14 @@ function updateSiblingCondition(sibling, value) {
         }
     }
 }
-
-const nextChildTemplate = (element) => (element.content ?? element).querySelector('*[pow]:not([pow] [pow])')
 const processCondition = (element, active, always) => {
     while (updateSiblingCondition(element.nextElementSibling, active));
     return (always || !active) && element.remove()
 }
 
-function processElement(element, state, value) {
+const escape = (text, skip) => skip ? text : text.replace(/({|p)({|ow)/g, '$1​$2​')
+
+const processElement = (element, state, value) => {
     const { attr, expr } = consumeBinding(element)
 
     if (attr == 'template' && (value = document.getElementById(expr))) {
@@ -80,7 +81,7 @@ function processElement(element, state, value) {
             parent: state.data
         }
     } else if (attr == 'array') {
-        // TODO: (v2.0.0?) Should array be inside only? Makes <ul array=""><li> cleaner. <div item="" array> could be outer
+        // TODO: (v2.0.0?) Alternative binding for inside only? Makes <ul pow each=""><li> cleaner
         value = !value || Array.isArray(value) ? value
             : Object.entries(value).map(([k, v]) => ({ key: k, value: v }))
         for (let index = 0; index < value?.length; ++index) {
@@ -100,18 +101,18 @@ function processElement(element, state, value) {
     element.removeAttribute('pow')
 
     // Process every child 'pow' template
-    while (value = nextChildTemplate(element)) {
+    while (value = nextChildTemplate(element, '*[pow]:not([pow] [pow])')[0]) {
         processElement(value, state)
     }
 
     // Interpolate attributes
     for (let { name, value } of [...element.attributes]) {
-        if (name[0] == '$') {
+        if (name[0] == ':') {
             element.removeAttribute(name)
             if (value = resolveExpr(value, state)) {
-                element.setAttribute(name.slice(1), value)
+                element.setAttribute(name.slice(1), escape(value, state.root == state.data))
             }
-        } else if (!['', 'false', '0'].includes(value = parseText(value, state))) {
+        } else if (value = parseText(value, state)) {
             element.setAttribute(name, value)
         } else {
             element.removeAttribute(name)
@@ -128,7 +129,7 @@ function processElement(element, state, value) {
     }
 }
 
-function bind(element) {
+const bind = (element) => {
     const originalHTML = element.innerHTML
     const attributes = [...element.attributes]
     const binding = {
@@ -143,9 +144,13 @@ function bind(element) {
             element.innerHTML = originalHTML
             attributes.forEach($ => element.setAttribute($.name, $.value))
 
-            //element.style.contentVisibility = 'hidden'
+            // Disable child HTML for stopped bindings
+            for (const child of nextChildTemplate(element, '*[pow][stop]')) {
+                child.outerHTML = escape(child.outerHTML)
+            }
+
             processElement(element, { path: '*root', data, root: data })
-            //element.style.contentVisibility = 'visible'
+            element.innerHTML = element.innerHTML.replace(/​/g, '')
 
             delete binding.$pow
             binding.refresh = () => binding.apply(data)
