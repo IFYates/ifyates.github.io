@@ -1,0 +1,82 @@
+div.example {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 20px;
+}
+div.example.nogrid {
+    grid-template-columns: auto;
+}
+div.example pre {
+    border: 1px solid #aaaaaa;
+    background-color: #ededed;
+    padding: 10px;
+}
+div.example code {
+    margin-bottom: 0;
+    height: 100%;
+}
+div.example pre.js {
+    grid-column: span 2;
+}
+
+pre.block {
+    margin-left: 4ex;
+}
+code {
+    color: inherit;
+}
+button.version {
+    background-color: #dedede;
+}
+button.version:hover {
+    background-color: #aaaaff;
+}
+button.version.active {
+    background-color: #6060ff;
+    color: white;
+    cursor: default;
+}
+
+blockquote {
+    border-left: 4px solid #aaaaff;
+    padding-left: 15px;
+    background-color: #e8e8e8;
+}
+
+.html {
+    border-radius: 5px;
+    background-color: #bcbcbc;
+    color: darkslategray;
+}
+.js {
+    padding: 3px 5px;
+    border-radius: 5px;
+    background-color: hsl(272, 100%, 90%);
+    color: #8800ff;
+}
+.pow {
+    padding: 3px 5px;
+    border-radius: 7px;
+    background-color: pink;
+    color: darkred;
+}
+.attr {
+    padding: 3px 5px;
+    border-radius: 5px;
+    background-color: lightblue;
+    color: darkblue;
+}
+.value {
+    padding: 3px 5px;
+    border-radius: 5px;
+    background-color: lightgreen;
+    color: darkgreen;
+    font-style: italic;
+}
+.expr {
+    padding: 3px 5px;
+    border-radius: 5px;
+    background-color: #ffdb99;
+    color: #805300;
+    font-style: italic;
+}
