@@ -1,4 +1,4 @@
-import pow from '../src/pow.js'
+import pow from '../v2.0.0/pow.min.js'
 
 const mainBinding = pow.bind(document.getElementsByTagName('main')[0])
 window.refreshMain = () => {
