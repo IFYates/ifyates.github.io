@@ -1,4 +1,4 @@
-import pow from '../v2.0.0/pow.min.js'
+import pow from '../src/pow.js'
 
 const mainBinding = pow.bind(document.getElementsByTagName('main')[0])
 window.refreshMain = () => {
@@ -7,13 +7,6 @@ window.refreshMain = () => {
     // TODO: scroll to top
 }
 
-window.activeVersion = 1.4 //2.0
-window.setActiveVersion = function(context) {
-    window.activeVersion = context.$data
-    window.refreshMain()
-}
-window.version = (firstVersion, lastVersion) => activeVersion >= firstVersion && (!lastVersion || activeVersion < lastVersion)
-
 window.fn = (value) => typeof value == 'function' ? value() : value
 
 const nav = {
@@ -21,14 +14,26 @@ const nav = {
     navigate: function (item) {
         this.href = 'javascript:void(0)'
         nav.current = item.id ?? item
-        history.pushState(null, null, `?/${item.id}/`)
+        history.pushState(null, null, `?/${nav.current}/`)
         refreshMain()
+        if (item.hash) {
+            location.hash = item.hash
+        }
         return false
     },
     isCurrent: (a, b, c) => {
         console.log(this, a, b, c)
         return false
     },
+
+    versions: [
+        '2.0',
+        '1.4',
+        '1.3',
+        '1.2',
+        '1.1',
+        '1.0'
+    ],
 
     pages: [
         { id: 'home', name: 'Home', icon: 'fas fa-home' },
@@ -49,10 +54,10 @@ const nav = {
             icon: 'fas fa-link',
             children: [
                 { id: 'bindings-loops', name: 'array' },
-                { id: 'bindings-data', name: () => activeVersion >= 2.0 ? 'data' : 'item', url: '?/syntax-binding/#data' },
+                { id: 'syntax-binding', hash: 'data', name: () => activeVersion >= 2.0 ? 'data' : 'item' },
                 { id: 'bindings-conditions', name: 'if / ifnot / else' },
-                { id: 'bindings-stop', name: 'stop', url: '?/syntax-binding/#stop' },
-                { id: 'bindings-templates', name: 'template' },
+                { id: 'bindings-templates', name: 'template', visible: () => activeVersion >= 1.2 },
+                { id: 'syntax-binding', hash: 'stop', name: 'stop', visible: () => activeVersion >= 1.4 },
             ]
         },
         {
@@ -62,7 +67,7 @@ const nav = {
             children: [
                 { id: 'features-interaction', name: 'Interactivity' },
                 { id: 'features-reactivity', name: 'Reactivity' },
-                { id: 'features-pow-safe', name: 'pow.safe' },
+                { id: 'features-pow-safe', name: 'pow.safe', visible: () => activeVersion >= 1.1 },
             ]
         },
         // {
@@ -77,11 +82,19 @@ const nav = {
         { id: 'repo', name: 'Repository', url: 'https://github.com/IFYates/pow.js', icon: 'fab fa-github' },
     ]
 }
-console.log(nav.current)
 
-pow.apply(document.getElementsByTagName('nav')[0], nav)
+window.activeVersion = nav.versions[0]
+
+const navBinding = pow.apply(document.getElementsByTagName('nav')[0], nav)
 pow.apply(document.getElementById('preloader'), nav)
 HTMLImportElement.whenInitialised(() => {
     mainBinding.apply(nav)
     // requestAnimationFrame(() => hljs.highlightAll())
 })
+
+window.setActiveVersion = function (context) {
+    window.activeVersion = context.$data
+    window.refreshMain()
+    navBinding.refresh()
+}
+window.version = (firstVersion, lastVersion) => activeVersion >= firstVersion && (!lastVersion || activeVersion < lastVersion)
