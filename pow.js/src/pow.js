@@ -53,7 +53,7 @@ const updateSiblingCondition = (sibling, active) => {
 }
 const processCondition = (element, active, always) => {
     while (updateSiblingCondition(element.nextElementSibling, active));
-    return (always | !active) && element.remove()
+    return (always | !active) && !element.remove()
 }
 
 const processElement = (element, state, isRoot, val) => {
@@ -70,8 +70,8 @@ const processElement = (element, state, isRoot, val) => {
 
         // Apply template
         if (name == B_TEMPLATE) {
-            val = document.getElementById(value)?.cloneNode(1)[INN_HTML] || element[INN_HTML]
-            element[INN_HTML] = val.replace(/<param(?:\s+id=["']([^"']+)["'])?\s*\/?>/g,
+            val = document.getElementById(value)?.cloneNode(1) || element
+            element[INN_HTML] = val[INN_HTML].replace(/<param(?:\s+id=["']([^"']+)["'])?\s*\/?>/g,
                 (_, id) => _selectChild(element, 'template' + (id ? '#' + id : ''))[0]?.[INN_HTML] ?? '')
             return processElement(element, state)
         }
@@ -98,9 +98,9 @@ const processElement = (element, state, isRoot, val) => {
             }, isRoot)
         } else if (name == B_IF | name == B_IFNOT) {
             // Conditional element
-            val = (name == B_IF) != !val()
-            processCondition(element, val)
-            return val && processElement(element, state, isRoot)
+            if (processCondition(element, (name == B_IF) != !val())) {
+                return
+            }
         } else if (name == B_ARRAY) {
             // Element loop
             val = !val() | Array.isArray(val) ? val
@@ -118,11 +118,11 @@ const processElement = (element, state, isRoot, val) => {
                 })
             }
             return processCondition(element, val?.length, 1)
-        }
-
-        // Standard attribute
-        if (val = parseText(value, state, isRoot)) {
-            _attribute.set(element, name, val)
+        } else {
+            // Standard attribute
+            if (val = parseText(value, state, isRoot)) {
+                _attribute.set(element, name, val)
+            }
         }
     }
 
