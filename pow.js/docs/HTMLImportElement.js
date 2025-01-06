@@ -34,7 +34,7 @@ class HTMLImportElement extends HTMLElement {
 
     #mounted() {
         const self = this
-        if (!self.attributes.src) {
+        if (!self.attributes.src || !self.isConnected) {
             self.#loaded()
             return
         }

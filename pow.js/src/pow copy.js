@@ -2,12 +2,12 @@
  * @license MIT
  * @author IFYates <https://github.com/ifyates/pow.js>
  * @description A very small and lightweight templating framework.
- * @version 2.2.0
+ * @version 2.2.1
  */
 
 // TODO: v3.0.0: else-if and else-ifnot are unnecessary: "else if" and "else ifnot" work the same
 const B_ARRAY = 'array', B_DATA = 'data', B_ELSE = 'else', B_IF = 'if', B_IFNOT = 'ifnot', B_TEMPLATE = 'template'
-const ATTR_POW = 'pow', CONTENT = 'content', INN_HTML = 'innerHTML', OUT_HTML = 'outerHTML', REPLACE = 'replace'
+const ATTR_POW = 'pow', CONTENT = 'content', FUNCTION = 'function', INN_HTML = 'innerHTML', OUT_HTML = 'outerHTML', REPLACE = 'replace'
 const _attribute = { set: (element, name, value) => element.setAttribute(name, value), remove: (element, name) => element.removeAttribute(name) }
 const _rand = Math.random
 const _selectChild = (element, selector) => (element[CONTENT] ?? element).querySelectorAll(selector)
@@ -30,18 +30,14 @@ const processCondition = (element, active, always) => {
 }
 
 const processElement = (element, state, isRoot, val) => {
-    // Interpolates text templates
-    const parseText = (text) => escape(text[REPLACE](/{{\s*(.*?)\s*}}/gs, (_, expr) => resolveExpr(expr) ?? ''), isRoot)
-    const escape = (text, isRoot) => isRoot ? text : text[REPLACE](/({|p)({|ow)/g, '$1​$2​')
-
     // Resolves an expression to a value
     const resolveExpr = (expr, context = getContext(state)) => {
         try {
             // Execute the expression as JS code, mapping to the state data
             const value = pow._eval(expr, context)
-
+    
             // If the result is a function, bind it for later
-            if (typeof value == 'function') {
+            if (typeof value == FUNCTION) {
                 const id = _rand()
                 window[state.$id][id] = (el) => value.call(el, context)
                 return state.$id + '[' + id + '](this)'
@@ -52,7 +48,11 @@ const processElement = (element, state, isRoot, val) => {
         }
     }
     const getContext = (state) => (state.$parent ? { ...state.$data, ...state, $parent: getContext(state.$parent) } : { ...state.$data, ...state })
-
+    
+    // Interpolates text templates
+    const parseText = (text) => escape(text[REPLACE](/{{\s*(.*?)\s*}}/gs, (_, expr) => resolveExpr(expr) ?? ''), isRoot)
+    const escape = (text) => isRoot ? text : text[REPLACE](/({|p)({|ow)/g, '$1​$2​')
+    
     // Prepare custom elements
     for (const el of [..._selectChild(element, '*')].filter($ => $.tagName.startsWith('POW:'))) {
         el[OUT_HTML] = el[OUT_HTML][REPLACE](/^<pow:([\w-]+)/i, `<${B_TEMPLATE} ${ATTR_POW} ${B_TEMPLATE}="$1"`)
@@ -134,6 +134,11 @@ const processElement = (element, state, isRoot, val) => {
     element[INN_HTML] = parseText(element[INN_HTML])
     if (element.tagName == 'TEMPLATE') {
         element.replaceWith(...element[CONTENT].childNodes)
+    }
+
+    // Transform complete element
+    if ((val = element.getAttribute("transform")) && typeof (val = resolveExpr(val)) == FUNCTION) {
+        val(element, state)
     }
 }
 
