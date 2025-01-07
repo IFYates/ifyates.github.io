@@ -38,13 +38,14 @@ block::before {
 }
 
 @media (min-width: 1400px) {
-    block {
+    block:not(.full) {
         grid-template-columns: 1fr 1fr;
     }
 
-    block>h2,
-    block>blockquote,
-    block::before {
+    block:not(.full) p.full,
+    block:not(.full)>h2,
+    block:not(.full)>blockquote,
+    block:not(.full)::before {
         grid-column: span 2;
     }
 }
@@ -105,8 +106,8 @@ block::before {
 div.example {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    row-gap: 10px;
-    column-gap: 10px;
+    row-gap: 2px;
+    column-gap: 2px;
     margin-bottom: 2rem;
 }
 
@@ -119,7 +120,26 @@ div.example pre {
     background-color: #22232a;
     padding: 10px;
     margin: 0;
-    border-radius: 8px;
+}
+div.example pre:not([class]) {
+    background-color: #1b1c22;
+}
+div.example pre.example-data {
+    border-radius: 15px 15px 0 0;
+}
+div.example:not(:has(pre.example-data)) pre.live-example {
+    border-top-left-radius: 15px;
+}
+div.example:not(:has(pre.example-data)) pre:not([class]) {
+    border-top-right-radius: 15px;
+}
+div.example pre.example-code,
+div.example:not(:has(pre.example-code)) pre.live-example:nth-last-child(2) {
+    border-bottom-left-radius: 15px;
+}
+div.example:has(pre.example-code) pre:not([class]),
+div.example:not(:has(pre.example-code)) pre:last-of-type {
+    border-bottom-right-radius: 15px;
 }
 
 div.example code {
@@ -165,4 +185,42 @@ pre.example-data::before {
     right: 8px;
     bottom: 3px;
     font-size: 1.5rem;
+    pointer-events: none;
+}
+
+div.overview {
+    background-color: #22232a;
+}
+div.overview pre {
+    background-color: #1b1c22;
+    margin: 0;
+    height: -webkit-fill-available;
+    align-content: center;
+    text-align: left;
+    overflow: hidden;
+}
+div.overview>div {
+    display: grid;
+    grid-template-columns: 1fr 1fr 4fr;
+    text-align: right;
+}
+div.overview div:not(:has(div)) {
+    padding: 0 10px;
+}
+div.overview>div>div {
+    margin: 0;
+    align-self: center;
+    text-align: right;
+}
+div.overview>div>span {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+}
+div.overview .bound, div.overview .bound pre {
+    background-color: hsl(200, 100%, 20%);
+    color: hsl(195, 100%, 90%);
+}
+div.overview .bound-element, div.overview .bound-element pre {
+    background-color: hsl(30, 100%, 30%) !important;
+    color: hsl(30, 100%, 90%) !important;
 }
