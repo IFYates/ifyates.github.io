@@ -1,4 +1,4 @@
-import pow from '../src/pow.js'
+import pow from '../latest/pow.js'
 
 window.fn = (value) => typeof value == 'function' ? value() : value
 
